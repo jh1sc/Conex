@@ -1,8 +1,20 @@
 Add-Type -AssemblyName  Microsoft.VisualBasic, PresentationCore, PresentationFramework, System.Drawing, System.Windows.Forms, WindowsBase, WindowsFormsIntegration, System; 
 iwr -Uri "https://raw.githubusercontent.com/jh1sc/Posh-Header/main/Posh-H.psm1" -OutFile "$env:temp\Posh-H.psm1"; ipmo "$env:temp\Posh-H.psm1"; Header
 $F = [Windows.Native.Kernel32]::GetCurrentConsoleFontEx(); $F.FontIndex = 0; $F.FontWidth = 6; $F.FontHeight = 12; $F.FontFamily = 54; $F.FontWeight = 1000; $F.FaceName = "SimSun-ExtB"; [Windows.Native.Kernel32]::SetCurrentConsoleFontEx($F)
-
-
+write-host "CONEX"
+#Get-ArpCache
+function GAC {
+    $regexIPv4Address = '(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)'
+    $regexMACAddress = '([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})|([0-9A-Fa-f]{2}){6}'
+    arp -a | Foreach-Object { if ($_ -like "*---*") { $interfaceIPv4 = [regex]::Matches($_, $regexIPv4Address).Value } elseif ($_ -match $regexMACAddress) {
+            $ipv4Address = $_.Split(" ") | Where-Object { $_ -match $regexIPv4Address }; $macAddress = $_.Split(" ") | Where-Object { $_ -match $regexMACAddress } | ForEach-Object { $_.ToUpper() }
+            $type = $_.Split(" ") | Where-Object { ![String]::IsNullOrEmpty($_) -and $_ -notmatch $regexIPv4Address -and $_ -notmatch $regexMACAddress }
+            [pscustomobject]@{Interface = $interfaceIPv4; IPv4Address = $ipv4Address; MACAddress = $macAddress; Type = $type }
+        }
+    }
+}
+(GAC).IPv4Address
+$SendingIP = Read-Host "Client ADDRESS"
 class Icmp {
     $ping = [System.Net.NetworkInformation.Ping]::new() #Ping Stoof Obj
     $pingOpt = [System.Net.NetworkInformation.PingOptions]::new() #Ping Stoof Obj Options
@@ -80,8 +92,7 @@ class Icmp {
 }
 
 
-$SendingIP = ((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress[0])
-$BindingIP = ((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress[1])
+$BindingIP = ((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress)
 $icmp = [Icmp]::new()
 $icmp.InitAll(20, $SendingIP, $BindingIP, "InterNetwork", "Raw", "Icmp")
 

